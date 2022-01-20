@@ -109,10 +109,12 @@ int main(int argc, char **argv) {
             show_usage(argv[0], "ERROR: required arguments are missing.");
             exit(1);
         }
-
+/*        cerr<<"tcp_udp"<<endl;
+        for (int i = 0; i < argc; ++i) {
+            cerr<<argv[i]<<endl;
+        }*/
         // handle configuration and UDP setup from cmdline arguments
         auto [c_fsm, c_filt, listen] = get_config(argc, argv);
-
         // build a TCP FSM on top of the UDP socket
         UDPSocket udp_sock;
         if (listen) {

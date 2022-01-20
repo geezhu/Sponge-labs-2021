@@ -140,7 +140,10 @@ int main(int argc, char **argv) {
             show_usage(argv[0], "ERROR: required arguments are missing.");
             return EXIT_FAILURE;
         }
-
+/*        cerr<<"tcp_ipv4"<<endl;
+        for (int i = 0; i < argc; ++i) {
+            cerr<<argv[i]<<endl;
+        }*/
         auto [c_fsm, c_filt, listen, tun_dev_name] = get_config(argc, argv);
         LossyTCPOverIPv4SpongeSocket tcp_socket(LossyTCPOverIPv4OverTunFdAdapter(
             TCPOverIPv4OverTunFdAdapter(TunFD(tun_dev_name == nullptr ? TUN_DFLT : tun_dev_name))));

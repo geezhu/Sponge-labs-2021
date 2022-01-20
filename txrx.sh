@@ -101,6 +101,7 @@ _socat_connect () {
 }
 
 _rt_listen () {
+    echo coproc "$3" -l "$4" "${SERVER_PORT}" ">$1" "<$2"
     coproc $3 -l $4 ${SERVER_PORT} >"$1" <"$2" && sleep 0.1
     set +u
     [ -z "$COPROC_PID" ] && { echo "Error in _rt_listen"; exit 1; }
@@ -108,20 +109,24 @@ _rt_listen () {
 }
 
 _rt_connect () {
+    echo "$3" "$4" "${SERVER_PORT}" ">$1" "<$2"
     $3 $4 ${SERVER_PORT} >"$1" <"$2" || { echo "Error in _rt_connect"; exit 1; }
 }
 
 test_listen () {
+#    echo TEST_LIS "$1" "$2" ">$1" "<$2"
     [ "$#" != 2 ] && { echo "bad args"; exit 1; }
     _rt_listen "$1" "$2" "${TEST_PROG}" "${TEST_HOST}"
 }
 
 test_connect () {
+#    echo TEST_CONN "$1" "$2" ">$1" "<$2"
     [ "$#" != 2 ] && { echo "bad args"; exit 1; }
     _rt_connect "$1" "$2" "${TEST_PROG}" "${REF_HOST}"
 }
 
 ref_listen () {
+#    echo REF_LIS "$1" "$2"
     [ "$#" != 2 ] && { echo "bad args"; exit 1; }
     if [ "$IUMODE" = "u" ] || [ -z "$USE_IPV4" ] || [ "$USE_IPV4" = "n" ]; then
         _rt_listen "$1" "$2" "${REF_PROG}" "${REF_HOST}"
@@ -131,6 +136,7 @@ ref_listen () {
 }
 
 ref_connect () {
+#    echo REF_CONN "$1" "$2"
     [ "$#" != 2 ] && { echo "bad args"; exit 1; }
     if [ "$IUMODE" = "u" ] || [ -z "$USE_IPV4" ] || [ "$USE_IPV4" = "n" ]; then
         _rt_connect "$1" "$2" "${REF_PROG}" "${TEST_HOST}"
@@ -233,6 +239,12 @@ fi
 HASH_OUT=$(hash_file ${TEST_OUT_FILE})
 if [ ! -z "${HASH_OUT2}" ] && [ "${HASH_OUT}" != "${HASH_OUT2}" ] || [ "${HASH_IN}" != "${HASH_OUT}" ]; then
     echo ERROR: "$HASH_IN" neq "$HASH_OUT" or "$HASH_OUT2"
+    cp ${TEST_OUT_FILE} testout1.txt
+    hexdump -C testout1.txt
+    rm testout1.txt
+    cp ${TEST_IN_FILE} testin1.txt
+    hexdump -C testin1.txt
+    rm testin1.txt
     exit 1
 fi
 exit 0

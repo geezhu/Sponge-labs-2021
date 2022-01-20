@@ -3,18 +3,21 @@
 
 #include "byte_stream.hh"
 
+#include <unordered_set>
 #include <cstdint>
 #include <string>
-
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
   private:
     // Your code here -- add private members as necessary.
 
-    ByteStream _output;  //!< The reassembled in-order byte stream
-    size_t _capacity;    //!< The maximum number of bytes
-
+    ByteStream output_;  //!< The reassembled in-order byte stream
+    size_t capacity_;    //!< The maximum number of bytes
+    size_t read_;
+    std::optional<size_t> end_;
+    std::string sliding_window_;
+    std::unordered_set<size_t> map_;
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
     //! \note This capacity limits both the bytes that have been reassembled,
@@ -33,8 +36,8 @@ class StreamReassembler {
 
     //! \name Access the reassembled byte stream
     //!@{
-    const ByteStream &stream_out() const { return _output; }
-    ByteStream &stream_out() { return _output; }
+    const ByteStream &stream_out() const { return output_; }
+    ByteStream &stream_out() { return output_; }
     //!@}
 
     //! The number of bytes in the substrings stored but not yet reassembled
