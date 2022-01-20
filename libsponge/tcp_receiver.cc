@@ -51,16 +51,16 @@ void TCPReceiver::segment_received(const TCPSegment &seg) {
 }
 
 optional<WrappingInt32> TCPReceiver::ackno() const {
-    uint32_t flag_cout=0;
+    uint32_t flag_count=0;
     if (!isn_){
         return nullopt;
     } else{
-        flag_cout+=1;
+        flag_count+=1;
     }
     if (stream_out().input_ended()){
-        flag_cout+=1;
+        flag_count+=1;
     }
-    uint64_t absolute_ackno=unwrap(WrappingInt32(stream_out().bytes_written()+flag_cout), WrappingInt32(0),absolute_sequence_number_);
+    uint64_t absolute_ackno=unwrap(WrappingInt32(stream_out().bytes_written()+flag_count), WrappingInt32(0),absolute_sequence_number_);
     return wrap(absolute_ackno,isn_.value());
 }
 

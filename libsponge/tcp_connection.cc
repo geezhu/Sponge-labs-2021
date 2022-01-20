@@ -23,25 +23,14 @@ size_t TCPConnection::unassembled_bytes() const { return receiver_.unassembled_b
 size_t TCPConnection::time_since_last_segment_received() const { return last_tick_receive_segment_; }
 
 void TCPConnection::segment_received(const TCPSegment &seg) {
-    std::ostringstream o;
-    o <<"segment:\n(";
-    o << (seg.header().ack ? "A=1," : "A=0,");
-    o << (seg.header().rst ? "R=1," : "R=0,");
-    o << (seg.header().syn ? "S=1," : "S=0,");
-    o << (seg.header().fin ? "F=1," : "F=0,");
-    o << "ackno=" << seg.header().ackno.raw_value() << ",";
-    o << "win=" << seg.header().win << ",";
-    o << "seqno=" << seg.header().seqno.raw_value() << ",";
-    o << "payload_size=" << seg.payload().size() << ",";
-    o << "...)\n";
-    clog<<o.str();
     if (seg.header().rst){
-        active_= false;
         linger_after_streams_finish_= false;
         sender_.stream_in().set_error();
         sender_.stream_in().end_input();
         receiver_.stream_out().end_input();
         receiver_.stream_out().set_error();
+        //make bytes in fly=0
+        sender_.ack_received(sender_.next_seqno(),0);
         return;
     }
     if (seg.header().ack){
@@ -52,9 +41,6 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
 
     if (receiver_.stream_out().input_ended() and not sender_.stream_in().input_ended()){
         linger_after_streams_finish_= false;
-    }
-    if (sender_.stream_in().input_ended() and bytes_in_flight()==0 and active_){
-        active_= false;
     }
     if (seg.length_in_sequence_space()!=0){
         sender_.fill_window();
@@ -100,7 +86,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     }
 }
 
-bool TCPConnection::active() const { return active_ or linger_after_streams_finish_; }
+bool TCPConnection::active() const { return (not (sender_.stream_in().input_ended() and bytes_in_flight() ==0 and receiver_.stream_out().input_ended())) or linger_after_streams_finish_; }
 
 size_t TCPConnection::write(const string &data) {
 //    clog<<"TCPConnection::write "<<data.length()<<endl;
@@ -129,7 +115,7 @@ size_t TCPConnection::write(const string &data) {
 //! \param[in] ms_since_last_tick number of milliseconds since the last call to this method
 void TCPConnection::tick(const size_t ms_since_last_tick) {
     last_tick_receive_segment_+=ms_since_last_tick;
-    if (not active_){
+    if (sender_.stream_in().input_ended() and bytes_in_flight() ==0 and receiver_.stream_out().input_ended()){
         if (linger_after_streams_finish_ and time_since_last_segment_received() >= 10*cfg_.rt_timeout){
             clog<<"tick timeout"<<endl;
             linger_after_streams_finish_= false;
@@ -146,7 +132,9 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
         sender_.stream_in().set_error();
         receiver_.stream_out().end_input();
         receiver_.stream_out().set_error();
-        active_= false;
+        //make bytes in fly=0
+        sender_.ack_received(sender_.next_seqno(),0);
+//        active_= false;
         linger_after_streams_finish_= false;
         return;
     }
