@@ -2,22 +2,93 @@
 #define SPONGE_LIBSPONGE_STREAM_REASSEMBLER_HH
 
 #include "byte_stream.hh"
-
+#include "buffer.hh"
 #include <unordered_set>
 #include <cstdint>
 #include <string>
+#include <iostream>
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.
+class ExtendBuffer: public Buffer{
+  private:
+    uint64_t index_;
+  public:
+    ExtendBuffer() = default;
+    //! \brief Construct by taking ownership of a string
+    ExtendBuffer(uint64_t index,std::string &&str) noexcept : Buffer(std::move(str)),index_(index) {}
+    void append(const Buffer &other) {
+        append(std::string(other.str().data(),other.str().length()));
+    }
+    void append(std::string &&str) {
+        str=std::string(this->str().data(), this->str().length())+str;
+        _storage=std::make_shared<std::string>(std::move(str));
+        _starting_offset=0;
+    }
+    void push_front(std::string &&str) {
+        append_prefix(str.length());
+        str.append(std::string(this->str().data(), this->str().length()));
+        _storage=std::make_shared<std::string>(std::move(str));
+        _starting_offset=0;
+    }
+    void remove_prefix(const size_t n){
+        Buffer::remove_prefix(n);
+        index_+=n;
+    };
+    void append_prefix(const size_t n){
+        index_-=n;
+    };
+    uint64_t end_index()const{
+        return index_+size();
+    }
+    uint64_t begin_index() const{
+        return index_;
+    }
+};
+class RAII_Substr{
+  private:
+    uint64_t &absolute_number_;
+    size_t& write_index_;
+    size_t write_length_;
+    size_t ignore_length_;
+    size_t& bytes_to_write_;
+    const std::string_view data_;
+  public:
+    explicit RAII_Substr(uint64_t &absolute_number,size_t& data_index,size_t write,size_t ignore,size_t& bytes_to_write,const std::string& data):absolute_number_(absolute_number),write_index_(data_index),write_length_(write),ignore_length_(ignore),bytes_to_write_(bytes_to_write),data_(data.data(),data.length()){
+        write_length_=write;
+        ignore_length_=ignore;
+    };
+    size_t write_length() const{
+        return write_length_;
+    }
+    size_t ignore_length() const{
+        return ignore_length_;
+    }
+    void ignore_first(){
+        write_index_+=ignore_length_;
+        bytes_to_write_-=ignore_length_;
+        absolute_number_+=ignore_length_;
+        ignore_length_=0;
+//        return ignore_length_;
+    }
+    std::string to_string() const {
+        return {data_.data()+write_index_,write_length_};
+    }
+    ~RAII_Substr(){
+        bytes_to_write_-=write_length_+ignore_length_;
+        write_index_+=ignore_length_+write_length_;
+        absolute_number_+=ignore_length_+write_length_;
+    }
+};
+//#endif
 class StreamReassembler {
   private:
     // Your code here -- add private members as necessary.
 
     ByteStream output_;  //!< The reassembled in-order byte stream
     size_t capacity_;    //!< The maximum number of bytes
-    size_t read_;
-    std::optional<size_t> end_;
-    std::string sliding_window_;
-    std::unordered_set<size_t> map_;
+    uint64_t read_;
+    std::optional<uint64_t> end_;
+    std::deque<ExtendBuffer> buffers_{};
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
     //! \note This capacity limits both the bytes that have been reassembled,

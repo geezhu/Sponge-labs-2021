@@ -13,7 +13,7 @@
 
 //! \brief A reference-counted read-only string that can discard bytes from the front
 class Buffer {
-  private:
+  protected:
     std::shared_ptr<std::string> _storage{};
     size_t _starting_offset{};
 
